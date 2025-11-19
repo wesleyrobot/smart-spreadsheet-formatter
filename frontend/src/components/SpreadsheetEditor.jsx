@@ -9,36 +9,49 @@ export default function SpreadsheetEditor({ data, columns }) {
   useEffect(() => {
     if (!containerRef.current) return
 
-    if (hotRef.current) {
-      hotRef.current.destroy()
+    if (hotRef.current && !hotRef.current.isDestroyed) {
+      try {
+        hotRef.current.destroy()
+      } catch (e) {
+        console.log('Instância já destruída')
+      }
+      hotRef.current = null
     }
 
-    hotRef.current = new Handsontable(containerRef.current, {
-      data: data || [],
-      colHeaders: columns || [],
-      rowHeaders: true,
-      width: '100%',
-      height: 500,
-      licenseKey: 'non-commercial-and-evaluation',
-      contextMenu: true,
-      filters: true,
-      dropdownMenu: true,
-      manualColumnResize: true,
-      manualRowResize: true,
-      stretchH: 'all'
-    })
+    if (containerRef.current && !hotRef.current) {
+      hotRef.current = new Handsontable(containerRef.current, {
+        data: data || [],
+        colHeaders: columns || true,
+        rowHeaders: true,
+        width: '100%',
+        height: 650,
+        licenseKey: 'non-commercial-and-evaluation',
+        contextMenu: true,
+        filters: true,
+        dropdownMenu: true,
+        manualColumnResize: true,
+        manualRowResize: true,
+        stretchH: 'all',
+        className: 'htDark'
+      })
+    }
 
     return () => {
-      if (hotRef.current) {
-        hotRef.current.destroy()
+      if (hotRef.current && !hotRef.current.isDestroyed) {
+        try {
+          hotRef.current.destroy()
+          hotRef.current = null
+        } catch (e) {
+          console.log('Erro ao destruir:', e.message)
+        }
       }
     }
   }, [data, columns])
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold mb-4">📊 Editor de Planilha</h2>
-      <div ref={containerRef} />
+    <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-800/50 shadow-2xl p-6">
+      <h2 className="text-xl font-semibold mb-4 text-white">Editor de Planilha</h2>
+      <div ref={containerRef} className="rounded-xl overflow-hidden shadow-inner" />
     </div>
   )
 }
