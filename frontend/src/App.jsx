@@ -1,15 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import FileUploader from './components/FileUploader'
 import SpreadsheetEditor from './components/SpreadsheetEditor'
 import ChatCommand from './components/ChatCommand'
 import ProjectManager from './components/ProjectManager'
+import DataDashboard from './components/DataDashboard'
 import { useSpreadsheet } from './hooks/useSpreadsheet'
+import { BarChart3 } from 'lucide-react'
 
 function App() {
   const { data, columns, selectedColumns, loadData, setSelectedColumns } = useSpreadsheet()
   const [transformedData, setTransformedData] = useState(null)
   const [transformedColumns, setTransformedColumns] = useState([])
   const [projectName, setProjectName] = useState('')
+  const [showDashboard, setShowDashboard] = useState(true)
+
+  useEffect(() => {
+    if (data.length === 0) {
+      setTransformedData(null)
+      setTransformedColumns([])
+      setProjectName('')
+    }
+  }, [data])
 
   const currentData = transformedData || data
   const currentColumns = transformedColumns.length > 0 ? transformedColumns : columns
@@ -38,29 +49,40 @@ function App() {
                 Smart Spreadsheet Formatter
               </h1>
               <p className="text-slate-400 text-sm mt-1">
-                {projectName ? `📁 ${projectName}` : 'Formatador inteligente com IA + Supabase'}
+                {projectName ? ` ${projectName}` : 'Formatador inteligente com IA + Análise automática'}
               </p>
             </div>
-            {currentData.length > 0 && (
-              <div className="flex gap-3">
-                <div className="bg-slate-800/50 backdrop-blur-sm px-4 py-2 rounded-lg border border-slate-700/50">
-                  <span className="text-blue-400 font-bold text-lg">{currentData.length}</span>
-                  <span className="text-slate-500 text-xs ml-2">linhas</span>
-                </div>
-                <div className="bg-slate-800/50 backdrop-blur-sm px-4 py-2 rounded-lg border border-slate-700/50">
-                  <span className="text-cyan-400 font-bold text-lg">{currentColumns.length}</span>
-                  <span className="text-slate-500 text-xs ml-2">colunas</span>
-                </div>
-              </div>
-            )}
+            <div className="flex gap-3 items-center">
+              {currentData.length > 0 && (
+                <>
+                  <div className="bg-slate-800/50 backdrop-blur-sm px-4 py-2 rounded-lg border border-slate-700/50">
+                    <span className="text-blue-400 font-bold text-lg">{currentData.length}</span>
+                    <span className="text-slate-500 text-xs ml-2">linhas</span>
+                  </div>
+                  <div className="bg-slate-800/50 backdrop-blur-sm px-4 py-2 rounded-lg border border-slate-700/50">
+                    <span className="text-cyan-400 font-bold text-lg">{currentColumns.length}</span>
+                    <span className="text-slate-500 text-xs ml-2">colunas</span>
+                  </div>
+                  <button
+                    onClick={() => setShowDashboard(!showDashboard)}
+                    className={`px-4 py-2 rounded-lg border transition flex items-center gap-2 ${
+                      showDashboard 
+                        ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' 
+                        : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-slate-300'
+                    }`}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Dashboard
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-[1920px] mx-auto px-6 py-8">
-        {/* LINHA 1: Ferramentas + Chat IA */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-          {/* Barra Lateral SIMPLIFICADA - Só Upload e Projetos */}
           <div className="lg:col-span-3 space-y-6">
             <FileUploader onDataLoad={loadData} />
             
@@ -70,15 +92,18 @@ function App() {
               onLoad={handleLoadProject}
             />
 
-            {/* Card de Instruções */}
             <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-800/50 shadow-2xl p-4">
               <h3 className="text-lg font-semibold text-slate-200 mb-3 flex items-center gap-2">
-                💡 Comandos Rápidos
+                 Comandos Rápidos
               </h3>
               <div className="space-y-2 text-sm text-slate-400">
                 <div className="flex items-start gap-2">
+                  <span className="text-pink-400">•</span>
+                  <span><strong className="text-slate-300">multione</strong> - Google Contacts</span>
+                </div>
+                <div className="flex items-start gap-2">
                   <span className="text-green-400">•</span>
-                  <span><strong className="text-slate-300">comercial</strong> - Formata planilha comercial</span>
+                  <span><strong className="text-slate-300">comercial</strong> - Formata comercial</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-blue-400">•</span>
@@ -86,20 +111,15 @@ function App() {
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-purple-400">•</span>
-                  <span><strong className="text-slate-300">baixar em 8 partes</strong> - Divide</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-pink-400">•</span>
-                  <span><strong className="text-slate-300">baixar tudo</strong> - Todos formatos</span>
+                  <span><strong className="text-slate-300">baixar zip</strong> - Compactar</span>
                 </div>
               </div>
             </div>
 
-            {/* Card de Status */}
             {currentData.length > 0 && (
               <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-xl rounded-2xl border border-green-500/30 shadow-2xl p-4">
                 <h3 className="text-lg font-semibold text-green-300 mb-3 flex items-center gap-2">
-                  ✅ Planilha Carregada
+                   Planilha Carregada
                 </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-slate-300">
@@ -113,14 +133,13 @@ function App() {
                 </div>
                 <div className="mt-3 pt-3 border-t border-green-500/30">
                   <p className="text-xs text-green-300/70">
-                    💾 Use "Salvar Projeto" para não perder seu trabalho
+                     Use "Salvar Projeto"
                   </p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Chat IA - GRANDE */}
           <div className="lg:col-span-9 h-[700px]">
             <ChatCommand 
               data={currentData} 
@@ -130,20 +149,26 @@ function App() {
           </div>
         </div>
 
-        {/* LINHA 2: Editor de Planilha FULL WIDTH */}
+        {/* DASHBOARD */}
+        {showDashboard && currentData.length > 0 && (
+          <div className="mb-6">
+            <DataDashboard data={currentData} columns={currentColumns} />
+          </div>
+        )}
+
+        {/* EDITOR */}
         <div className="h-[600px]">
           <SpreadsheetEditor data={currentData} columns={currentColumns} />
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="bg-slate-900/30 backdrop-blur-xl border-t border-slate-800/50 py-4">
         <div className="max-w-[1920px] mx-auto px-6 text-center">
           <p className="text-slate-500 text-sm">
-            💼 Smart Spreadsheet Formatter v2.0 • 
-            Powered by IA + Supabase • 
+             Smart Spreadsheet Formatter v3.0 • 
+            IA + Análise Automática + Sugestões Inteligentes • 
             <span className="text-slate-400 ml-1">
-              {currentData.length > 0 ? `${currentData.length} linhas carregadas` : 'Aguardando upload'}
+              {currentData.length > 0 ? `${currentData.length} linhas` : 'Aguardando upload'}
             </span>
           </p>
         </div>

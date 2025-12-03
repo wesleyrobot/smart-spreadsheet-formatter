@@ -36,6 +36,17 @@ export default function ChatCommand({ data, columns, onTransform }) {
     return 'Boa noite'
   }
 
+  const pensamentosAutonomos = [
+    "Analisando estrutura dos dados...",
+    "Verificando qualidade das informações...",
+    "Identificando padrões...",
+    "Buscando inconsistências...",
+    "Calculando estatísticas...",
+    "Avaliando possíveis melhorias...",
+    "Comparando com padrões conhecidos...",
+    "Gerando recomendações..."
+  ]
+
   const mostrarPensamento = (pensamentos, callback) => {
     setIsThinking(true)
     let currentIndex = 0
@@ -53,6 +64,7 @@ export default function ChatCommand({ data, columns, onTransform }) {
     }, 800)
   }
 
+  // Carregar estatísticas de aprendizado
   useEffect(() => {
     carregarEstatisticas()
   }, [])
@@ -309,6 +321,7 @@ export default function ChatCommand({ data, columns, onTransform }) {
     }
   }
 
+  // Enviar feedback para aprendizado
   const enviarFeedback = async (messageIndex, feedback) => {
     if (!conversationId) return
     
@@ -325,6 +338,7 @@ export default function ChatCommand({ data, columns, onTransform }) {
         feedback: feedback
       })
       
+      // Atualizar mensagem com feedback
       const newHistory = [...history]
       newHistory[messageIndex] = {
         ...newHistory[messageIndex],
@@ -332,6 +346,7 @@ export default function ChatCommand({ data, columns, onTransform }) {
       }
       setHistory(newHistory)
       
+      // Recarregar estatísticas
       carregarEstatisticas()
       
       const feedbackMsg = feedback === 'positive' 
@@ -398,14 +413,9 @@ export default function ChatCommand({ data, columns, onTransform }) {
   const baixarDivididoEm49 = (dadosParaBaixar) => {
     if (!dadosParaBaixar || dadosParaBaixar.length === 0) return 0
     
-    console.log('INICIANDO DOWNLOAD DIVIDIDO EM 49')
-    console.log('Total de linhas:', dadosParaBaixar.length)
-    
     const totalLinhas = dadosParaBaixar.length
     const linhasPorParte = 49
     const numPartes = Math.ceil(totalLinhas / linhasPorParte)
-    
-    console.log('Número de arquivos:', numPartes)
     
     for (let i = 0; i < numPartes; i++) {
       const inicio = i * linhasPorParte
@@ -424,7 +434,6 @@ export default function ChatCommand({ data, columns, onTransform }) {
         XLSX.writeFile(wb, `contatos_multione_parte_${i + 1}_de_${numPartes}.csv`, {
           bookType: 'csv'
         })
-        console.log(`Arquivo ${i + 1} de ${numPartes} baixado`)
       }, i * 500)
     }
     
@@ -434,31 +443,82 @@ export default function ChatCommand({ data, columns, onTransform }) {
   const processarComandoDownload = (cmd) => {
     const cmdLower = cmd.toLowerCase().trim()
     
-    console.log('📥 Comando recebido:', cmdLower)
-    
     if (!data || data.length === 0) {
       return { isDownload: false }
     }
 
-    // DIVIDIR EM 49 - PRIORIDADE MÁXIMA
-    if (cmdLower.includes('49') || cmdLower.includes('dividir')) {
-      console.log('✅ DETECTADO: dividir em 49')
+    if (cmdLower.includes("49") || cmdLower.includes("dividir") || cmdLower.includes("multione baixar")) {
       setTimeout(() => {
         const arquivosBaixados = baixarDivididoEm49(data)
         const msg = {
-          role: 'assistant',
-          content: `Perfeito, ${userName}! ${arquivosBaixados} arquivos baixados.\n\nFormato MULTIONE:\n• Primeira linha vazia\n• 49 contatos por arquivo\n• ${data.length} linhas processadas`
+          role: "assistant",
+          content: `Perfeito, ${userName}! ${arquivosBaixados} arquivos baixados.\n\nFormato MULTIONE:\n• Primeira linha vazia\n• 49 contatos por arquivo\n• Total de ${data.length} linhas divididas`
         }
         typeMessage(msg.content, () => {
           setHistory(prev => [...prev, msg])
-          salvarMensagem('assistant', msg.content, 'download')
+          salvarMensagem("assistant", msg.content, "download")
         })
       }, 500)
       
-      return { isDownload: true, message: 'Gerando arquivos MULTIONE divididos em 49 linhas...' }
+      return { isDownload: true, message: "Gerando arquivos MULTIONE divididos em 49 linhas..." }
     }
 
-    // ZIP
+    if (cmdLower.includes("zip") || cmdLower.includes("compactar")) {
+      const match = cmdLower.match(/(\d+)/)
+      const numPartes = match ? parseInt(match[1]) : 8
+
+      setTimeout(async () => {
+        const arquivosBaixados = await baixarZIP(data, numPartes)
+        const msg = {
+          role: "assistant",
+          content: `Pronto, ${userName}! Arquivo ZIP baixado com sucesso.\n\nContém ${arquivosBaixados} planilhas CSV\nArquivo: planilhas_${numPartes}_partes.zip`
+        }
+        typeMessage(msg.content, () => {
+          setHistory(prev => [...prev, msg])
+          salvarMensagem("assistant", msg.content, "download")
+        })
+      }, 500)
+      
+      return { isDownload: true, message: "Compactando arquivos em ZIP..." }
+    }
+
+    if (cmdLower === "baixar csv" || cmdLower === "csv") {
+      setTimeout(() => {
+        baixarCSV(data, "planilha")
+        const msg = {
+          role: "assistant",
+          content: `Pronto, ${userName}! CSV baixado: planilha.csv`
+        }
+        typeMessage(msg.content, () => {
+          setHistory(prev => [...prev, msg])
+          salvarMensagem("assistant", msg.content, "download")
+        })
+      }, 500)
+      return { isDownload: true, message: "Baixando CSV..." }
+    }
+
+    const comandosSimples = ["baixar", "download", "salvar", "exportar"]
+    const ehComandoSimples = comandosSimples.some(c => cmdLower === c || cmdLower === c + "!" || cmdLower === c + ".")
+
+    if (ehComandoSimples) {
+      setTimeout(() => {
+        baixarExcel(data, "planilha_formatada")
+        const msg = {
+          role: "assistant",
+          content: `Download concluído, ${userName}!\n\nArquivo: planilha_formatada.xlsx\nTotal: ${data.length} linhas`
+        }
+        typeMessage(msg.content, () => {
+          setHistory(prev => [...prev, msg])
+          salvarMensagem("assistant", msg.content, "download")
+        })
+      }, 500)
+      return { isDownload: true, message: "Preparando download..." }
+    }
+
+    return { isDownload: false }
+  }
+    }
+
     if (cmdLower.includes('zip') || cmdLower.includes('compactar')) {
       const match = cmdLower.match(/(\d+)/)
       const numPartes = match ? parseInt(match[1]) : 8
@@ -467,7 +527,7 @@ export default function ChatCommand({ data, columns, onTransform }) {
         const arquivosBaixados = await baixarZIP(data, numPartes)
         const msg = {
           role: 'assistant',
-          content: `Pronto, ${userName}! Arquivo ZIP baixado.\n\nContém ${arquivosBaixados} planilhas CSV\nArquivo: planilhas_${numPartes}_partes.zip`
+          content: `Pronto, ${userName}! Arquivo ZIP baixado com sucesso.\n\nContém ${arquivosBaixados} planilhas CSV\nArquivo: planilhas_${numPartes}_partes.zip`
         }
         typeMessage(msg.content, () => {
           setHistory(prev => [...prev, msg])
@@ -478,7 +538,22 @@ export default function ChatCommand({ data, columns, onTransform }) {
       return { isDownload: true, message: 'Compactando arquivos em ZIP...' }
     }
 
-    // CSV
+    if (cmdLower.includes('dividido em 49') || cmdLower.includes('baixar 49')) {
+      setTimeout(() => {
+        const arquivosBaixados = baixarDivididoEm49(data)
+        const msg = {
+          role: 'assistant',
+          content: `Perfeito, ${userName}! ${arquivosBaixados} arquivos baixados.\n\nFormato MULTIONE com primeira linha vazia + 49 contatos por arquivo`
+        }
+        typeMessage(msg.content, () => {
+          setHistory(prev => [...prev, msg])
+          salvarMensagem('assistant', msg.content, 'download')
+        })
+      }, 500)
+      
+      return { isDownload: true, message: 'Gerando arquivos MULTIONE...' }
+    }
+
     if (cmdLower === 'baixar csv' || cmdLower === 'csv') {
       setTimeout(() => {
         baixarCSV(data, 'planilha')
@@ -494,7 +569,6 @@ export default function ChatCommand({ data, columns, onTransform }) {
       return { isDownload: true, message: 'Baixando CSV...' }
     }
 
-    // EXCEL
     const comandosSimples = ['baixar', 'download', 'salvar', 'exportar']
     const ehComandoSimples = comandosSimples.some(c => cmdLower === c || cmdLower === c + '!' || cmdLower === c + '.')
 
@@ -524,6 +598,7 @@ export default function ChatCommand({ data, columns, onTransform }) {
     setHistory(prev => [...prev, userMessage])
     salvarMensagem('user', command)
 
+    // Verificar downloads
     const downloadResult = processarComandoDownload(command)
     
     if (downloadResult.isDownload) {
@@ -538,11 +613,13 @@ export default function ChatCommand({ data, columns, onTransform }) {
 
     setLoading(true)
 
+    // Usar sistema de aprendizado
     const pensamentos = ['Pensando na melhor resposta...', 'Consultando conhecimento...']
     mostrarPensamento(pensamentos, async () => {
       try {
+        // Chamar API de aprendizado
         const learnResponse = await axios.post('http://localhost:8000/api/ai/learn', {
-          input_text: command,
+          message: command,
           user_name: userName,
           context: {
             rows: data.length,
@@ -571,6 +648,7 @@ export default function ChatCommand({ data, columns, onTransform }) {
           return
         }
 
+        // Fallback para API original
         const response = await axios.post('http://localhost:8000/api/ml/ai-command', {
           command: command,
           data: data,
@@ -633,7 +711,6 @@ export default function ChatCommand({ data, columns, onTransform }) {
     <div className={`bg-slate-900/50 backdrop-blur-xl rounded-3xl border-2 border-purple-500/50 shadow-2xl flex flex-col transition-all ${
       isMaximized ? 'fixed inset-4 z-50 h-[calc(100vh-2rem)]' : 'h-full'
     }`}>
-      {/* HEADER */}
       <div className="flex items-center justify-between p-6 border-b border-slate-800/50 bg-gradient-to-r from-purple-500/20 to-pink-500/20">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center relative">
@@ -694,7 +771,6 @@ export default function ChatCommand({ data, columns, onTransform }) {
         </div>
       </div>
 
-      {/* SUGESTÕES */}
       {suggestions.length > 0 && (
         <div className="p-4 border-b border-slate-800/50">
           <h3 className="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">
@@ -736,7 +812,6 @@ export default function ChatCommand({ data, columns, onTransform }) {
         </div>
       )}
 
-      {/* COMANDOS */}
       <div className="px-6 pt-4">
         <div className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl">
           <div className="flex items-start gap-3">
@@ -747,7 +822,7 @@ export default function ChatCommand({ data, columns, onTransform }) {
                 Comandos
               </div>
               <div className="text-xs text-slate-300">
-                <strong className="text-pink-300">MULTIONE:</strong> "multione" → "dividir em 49"<br/>
+                <strong className="text-pink-300">MULTIONE:</strong> "multione" → "baixar dividido em 49"<br/>
                 <strong className="text-green-300">COMERCIAL:</strong> "comercial" → "baixar zip"<br/>
                 <strong className="text-blue-300">Downloads:</strong> "baixar" • "baixar csv" • "baixar zip"
               </div>
@@ -756,7 +831,6 @@ export default function ChatCommand({ data, columns, onTransform }) {
         </div>
       </div>
 
-      {/* CHAT */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {history.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
@@ -891,7 +965,6 @@ export default function ChatCommand({ data, columns, onTransform }) {
         )}
       </div>
 
-      {/* EXEMPLOS */}
       <div className="px-6 pb-4">
         <div className="mb-3">
           <p className="text-xs text-slate-300 mb-2 flex items-center gap-2">
@@ -912,7 +985,6 @@ export default function ChatCommand({ data, columns, onTransform }) {
         </div>
       </div>
 
-      {/* INPUT */}
       <div className="p-6 border-t border-slate-800/50 bg-slate-900/50">
         <form onSubmit={handleSubmit} className="flex gap-3">
           <input
@@ -934,7 +1006,6 @@ export default function ChatCommand({ data, columns, onTransform }) {
         </form>
       </div>
 
-      {/* MODAL NOME */}
       {showNameModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-slate-900 rounded-2xl border-2 border-purple-500/50 p-8 w-full max-w-md shadow-2xl">

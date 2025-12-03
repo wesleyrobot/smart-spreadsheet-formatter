@@ -1,0 +1,326 @@
+from fastapi import APIRouter, HTTPException
+from typing import Dict, Any
+import pandas as pd
+import re
+from datetime import datetime
+from app.ai_engine import ai_engine
+from app.ai_engine_advanced import advanced_ai
+from app.excel_assistant import excel_assistant
+
+router = APIRouter()
+
+@router.post("/ai-command")
+async def unified_ai_assistant(payload: Dict[str, Any]):
+    """IA UNIFICADA AVANÇADA"""
+    try:
+        command = payload.get('command', '')
+        data = payload.get('data', [])
+        columns = payload.get('columns', [])
+        
+        print(f"🧠 COMANDO: {command}")
+        
+        command_lower = command.lower()
+        
+        # ==================== MODO MULTIONE ====================
+        if 'multione' in command_lower:
+            print("🎯 MODO MULTIONE ATIVADO")
+            
+            if not data:
+                return {"message": "Carregue uma planilha primeiro!", "data": None}
+            
+            df = pd.DataFrame(data)
+            
+            # PASSO 1: Identificar colunas de nome e telefone
+            nome_col = None
+            telefone_col = None
+            
+            for col in df.columns:
+                col_lower = col.lower()
+                if 'name' in col_lower or 'nome' in col_lower:
+                    nome_col = col
+                elif 'phone' in col_lower or 'telefone' in col_lower or 'number' in col_lower:
+                    telefone_col = col
+            
+            # Se não encontrou, tentar primeira e segunda coluna
+            if not nome_col and len(df.columns) > 0:
+                nome_col = df.columns[0]
+            if not telefone_col and len(df.columns) > 1:
+                telefone_col = df.columns[1]
+            
+            if not nome_col or not telefone_col:
+                return {
+                    "message": "❌ Não encontrei colunas de Nome e Telefone!\n\nVerifique se o arquivo tem essas colunas.",
+                    "data": None
+                }
+            
+            # PASSO 2: Limpar coluna nome - remover "Mycontacts" e "None"
+            df[nome_col] = df[nome_col].astype(str)
+            df[nome_col] = df[nome_col].str.replace('Mycontacts', '', case=False, regex=False)
+            df[nome_col] = df[nome_col].str.replace('None', '', case=False, regex=False)
+            df[nome_col] = df[nome_col].str.strip()
+            
+            # PASSO 3: Adicionar 55 em todos os números
+            def adicionar_55(telefone):
+                if pd.isna(telefone):
+                    return None
+                
+                # Limpar telefone - só números
+                nums = re.sub(r'[^0-9]', '', str(telefone))
+                
+                if not nums:
+                    return None
+                
+                # Se não começa com 55, adicionar
+                if not nums.startswith('55'):
+                    nums = '55' + nums
+                
+                return nums
+            
+            df[telefone_col] = df[telefone_col].apply(adicionar_55)
+            
+            # PASSO 4: Excluir linhas com números < 12 ou > 13 dígitos
+            def validar_tamanho(telefone):
+                if pd.isna(telefone) or telefone is None:
+                    return False
+                tamanho = len(str(telefone))
+                return 12 <= tamanho <= 13
+            
+            df = df[df[telefone_col].apply(validar_tamanho)]
+            
+            # PASSO 5: Excluir linhas sem nome ou número
+            df = df[df[nome_col].notna() & (df[nome_col] != '')]
+            df = df[df[telefone_col].notna() & (df[telefone_col] != '')]
+            
+            # PASSO 6: Criar formato final (Nome,Telefone)
+            df_final = pd.DataFrame({
+                'Nome': df[nome_col],
+                'Telefone': df[telefone_col]
+            })
+            
+            # Resetar índice
+            df_final = df_final.reset_index(drop=True)
+            
+            total_contatos = len(df_final)
+            
+            # Limpar NaN
+            df_final = df_final.replace({pd.NA: None, pd.NaT: None})
+            df_final = df_final.where(pd.notna(df_final), None)
+            
+            message = f"""✅ **MODO MULTIONE APLICADO!**
+
+📊 **Processamento completo:**
+- {total_contatos} contatos válidos
+- Formato: Nome,Telefone
+- Números com 55 adicionado
+- Contatos limpos e validados
+
+📥 **Próximos passos:**
+- Digite "baixar csv" para baixar arquivo CSV
+- Digite "dividir em 49" para criar múltiplas planilhas
+
+🗂️ **Colunas finais:** Nome, Telefone"""
+            
+            return {
+                "message": message,
+                "data": df_final.to_dict('records'),
+                "type": "transform",
+                "info": {
+                    "total_contatos": total_contatos,
+                    "formato": "multione"
+                }
+            }
+        
+        # ==================== DIVIDIR EM 49 ====================
+        if 'dividir em 49' in command_lower or 'dividir 49' in command_lower:
+            print("📊 DIVIDIR EM 49 CONTATOS")
+            
+            if not data:
+                return {"message": "Carregue uma planilha primeiro!", "data": None}
+            
+            df = pd.DataFrame(data)
+            total = len(df)
+            por_parte = 49
+            num_partes = (total + por_parte - 1) // por_parte  # Arredondar para cima
+            
+            message = f"""✅ **DIVISÃO EM 49 CONTATOS!**
+
+📊 **Detalhes:**
+- Total: {total} contatos
+- Planilhas: {num_partes}
+- Por planilha: 49 contatos (última pode ter menos)
+- Primeira linha de cada planilha: VAZIA
+
+💾 **Para baixar:** Digite "baixar dividido em 49"
+
+⚠️ **IMPORTANTE:** Cada planilha terá linha em branco no topo!"""
+            
+            return {
+                "message": message,
+                "data": data,
+                "type": "info",
+                "info": {
+                    "divisao": 49,
+                    "total_partes": num_partes
+                }
+            }
+        
+        # ==================== MODO COMERCIAL ====================
+        if 'comercial' in command_lower or 'formato comercial' in command_lower:
+            print("🏢 MODO COMERCIAL ATIVADO")
+            
+            if not data:
+                return {"message": "Carregue uma planilha primeiro!", "data": None}
+            
+            df = pd.DataFrame(data)
+            formatted_df = pd.DataFrame()
+            
+            for col in df.columns:
+                col_lower = col.lower()
+                
+                if 'empresa' in col_lower or 'company' in col_lower or 'razao' in col_lower:
+                    formatted_df['EMPRESA'] = df[col].str.strip().str.upper()
+                
+                elif 'nome' in col_lower and 'empresa' not in col_lower:
+                    formatted_df['NOME_CONTATO'] = df[col].str.strip().str.title()
+                
+                elif 'email' in col_lower or 'mail' in col_lower:
+                    formatted_df['EMAIL'] = df[col].str.strip().str.lower()
+                
+                elif 'telefone' in col_lower or 'phone' in col_lower or 'fone' in col_lower:
+                    formatted_df['TELEFONE'] = df[col].apply(lambda x: 
+                        re.sub(r'[^0-9]', '', str(x)) if pd.notna(x) else None
+                    )
+                
+                elif 'cnpj' in col_lower:
+                    def format_cnpj(cnpj):
+                        if pd.isna(cnpj): return None
+                        nums = re.sub(r'[^0-9]', '', str(cnpj))
+                        if len(nums) == 14:
+                            return f"{nums[:2]}.{nums[2:5]}.{nums[5:8]}/{nums[8:12]}-{nums[12:14]}"
+                        return nums
+                    formatted_df['CNPJ'] = df[col].apply(format_cnpj)
+            
+            if 'EMPRESA' not in formatted_df.columns and len(df.columns) > 0:
+                formatted_df['EMPRESA'] = df[df.columns[0]].str.strip().str.upper()
+            
+            if 'EMAIL' in formatted_df.columns:
+                formatted_df['DOMINIO'] = formatted_df['EMAIL'].str.split('@').str[1]
+            
+            if 'TELEFONE' in formatted_df.columns:
+                formatted_df['DDD'] = formatted_df['TELEFONE'].str[:2]
+            
+            formatted_df['STATUS'] = 'ATIVO'
+            formatted_df['DATA_CADASTRO'] = datetime.now().strftime('%Y-%m-%d')
+            
+            if 'EMAIL' in formatted_df.columns:
+                antes = len(formatted_df)
+                formatted_df = formatted_df.drop_duplicates(subset=['EMAIL'], keep='first')
+                removidas = antes - len(formatted_df)
+            else:
+                removidas = 0
+            
+            formatted_df = formatted_df.dropna(how='all')
+            
+            if 'EMPRESA' in formatted_df.columns:
+                formatted_df = formatted_df.sort_values('EMPRESA')
+            
+            formatted_df = formatted_df.replace({pd.NA: None, pd.NaT: None})
+            formatted_df = formatted_df.where(pd.notna(formatted_df), None)
+            
+            result_data = formatted_df.to_dict('records')
+            
+            message = f"""✅ **MODO COMERCIAL APLICADO!**
+
+📊 **Resultados:**
+- {len(result_data)} contatos formatados
+- {len(formatted_df.columns)} colunas estruturadas
+- {removidas} duplicatas removidas
+
+🗂️ **Colunas:** {', '.join(formatted_df.columns)}
+
+💡 **Próximo passo:** Digite "dividir em 8 planilhas" para separar"""
+            
+            return {
+                "message": message,
+                "data": result_data,
+                "type": "transform"
+            }
+        
+        # ==================== DIVIDIR PLANILHA ====================
+        if 'dividir' in command_lower and ('planilha' in command_lower or 'partes' in command_lower):
+            print("📊 DIVIDIR PLANILHA")
+            
+            if not data:
+                return {"message": "Carregue uma planilha primeiro!", "data": None}
+            
+            match = re.search(r'(\d+)', command_lower)
+            partes = int(match.group(1)) if match else 8
+            
+            df = pd.DataFrame(data)
+            total = len(df)
+            por_parte = total // partes
+            
+            message = f"""✅ **PLANILHA DIVIDIDA EM {partes} PARTES!**
+
+📊 **Detalhes:**
+- Total: {total} linhas
+- Por parte: ~{por_parte} linhas
+
+💾 **Para baixar:** Use o botão "Exportar" e baixe cada parte"""
+            
+            parte1 = df.iloc[:por_parte]
+            parte1 = parte1.replace({pd.NA: None, pd.NaT: None})
+            parte1 = parte1.where(pd.notna(parte1), None)
+            
+            return {
+                "message": message,
+                "data": parte1.to_dict('records'),
+                "type": "transform",
+                "info": {
+                    "total_partes": partes,
+                    "linhas_por_parte": por_parte
+                }
+            }
+        
+        # ==================== PERGUNTAS EXCEL ====================
+        excel_keywords = ['como', 'qual', 'função', 'fórmula', '?']
+        is_question = any(kw in command_lower for kw in excel_keywords) and not data
+        
+        if is_question:
+            results = excel_assistant.search_function(command)
+            if results:
+                response = "📚 **Funções Excel:**\n\n"
+                for r in results[:3]:
+                    response += f"**{r['funcao']}** - {r['descricao']}\n"
+                    response += f"💡 `{r['sintaxe']}`\n\n"
+                return {"message": response, "data": None, "type": "excel_help"}
+        
+        # ==================== COMANDOS NORMAIS ====================
+        if not data:
+            return {"message": "📊 Carregue uma planilha primeiro!", "data": None}
+        
+        df = pd.DataFrame(data)
+        original_cols = list(df.columns)
+        
+        intent, params = ai_engine.extract_intent(command)
+        print(f"🎯 INTENÇÃO: {intent}")
+        
+        message = ""
+        
+        if intent == 'REMOVE_DUPLICATES':
+            antes = len(df)
+            df = df.drop_duplicates()
+            message = f"✅ {antes - len(df)} duplicatas removidas"
+        else:
+            message = "❓ Comando não reconhecido. Tente: 'multione', 'comercial', 'baixar'"
+            return {"message": message, "data": None}
+        
+        df = df.replace({pd.NA: None, pd.NaT: None})
+        df = df.where(pd.notna(df), None)
+        
+        return {"message": message, "data": df.to_dict('records'), "type": "transform"}
+        
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
